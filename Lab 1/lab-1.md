@@ -119,7 +119,7 @@ For **production environment**, we should install Wazuh in **cluster mode** (set
 In our lab we will use **OVA (Open Virtual Appliance)** to use it in **VirtualBox** to test our labs.  
 There are other deployment options like **dedicated server**, **VM image**, **Docker container**, and **Kubernetes**, each deployment option has its advantages.
 
-👉 **[Wazuh Virtual Machine Deployment Documentation](https://documentation.wazuh.com/current/deployment-options/virtual-machine/virtual-machine.html)**
+ **[Wazuh Virtual Machine Deployment Documentation](https://documentation.wazuh.com/current/deployment-options/virtual-machine/virtual-machine.html)**
 
 ---
 
