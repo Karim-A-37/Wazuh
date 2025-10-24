@@ -126,3 +126,78 @@ There are other deployment options like **dedicated server**, **VM image**, **Do
 **Note:**  
 Docker and Kubernetes → for **production-level deployment**.
 
+---
+
+# Wazuh Modules and Administration
+
+Wazuh has something is called modules which will help us to find security threats and make sure that we are follow rules, Wazuh has four default modules or sections:
+
+## 1. Security Information Management
+Security event and integrity monitoring module, by using security predefined rules for security events and display alerts, and make sure and detect any tampering for system files for integrity.
+
+## 2. Threat Detection and Response
+Has two modules vulnerabilities (tracks known vulnerabilities) and MITRE ATT&CK (Adversarial tactics, techniques and common knowledge) (maps detected threats to framework) and we can add other modules like VirusTotal and others.
+
+## 3. Auditing and Policy Monitoring
+It monitors policies and configurations, this section about policies, has three modules:
+- Policy monitoring (ensure that policies are established)
+- System auditing (tracks and audits activities on the endpoints)
+- Security configuration assessment (checks system configurations against best practices using CIS framework).
+
+## 4. Regulatory Compliance
+For make sure that rules meet those Regulatory Compliance containing most popular regularities like (GDPR, ...more). Wazuh rules are created with some of this regularities.
+
+---
+
+## Wazuh Administration Section
+Wazuh administration section has pivotal role in Wazuh for detecting in real world, it has the following:
+
+### 1. Decoders
+It pulling out important info from different log entries formats and normalize them into one standard format. It contains of different tags:
+1.1 - decoder name.  
+1.2 - parent --> this will be processed first then child decoders.  
+1.3 - prematch --> condition that must match to apply decoder.  
+1.4 - regex --> represents regular expressions to extract data.  
+1.5 - order --> indicates list of fields in which the extracted info or values will be stored.  
+
+For more about decoders syntax we will use this page:  
+ [Decoders Syntax Documentation](https://documentation.wazuh.com/current/user-manual/ruleset/ruleset-xml-syntax/decoders.html)
+
+---
+
+### 2. Rules
+Rules help the system to detect attacks in early stages, it is one of the most important thing in Wazuh or SIEM solution in general, because it defines how good is your detection system.  
+There are predefined rules but we can create our custom rules. Let's divide its content; it has different tags:
+
+2.1 - rule id --> unique id for rule.  
+2.2 - level --> range from 0 to 15 each number indicates different severity.  
+2.3 - if_sid --> id of another rule which is treated as parent rule which will be checked first.  
+2.4 - field name --> name of field extracted from decoder, the value is matched by regular expression.  
+2.5 - mitre --> id of mapped mitre or associates the rule with a mitre technique.  
+2.6 - options --> options to do when this rule is triggered.  
+2.7 - group --> organize Wazuh rules by categorizing them into groups.  
+
+There are more and more options and we will find them here:  
+ [Rules Syntax Documentation](https://documentation.wazuh.com/current/user-manual/ruleset/ruleset-xml-syntax/rules.html)
+
+---
+
+### 3. CDB Lists
+Constant database for categorization IPs and Domains based on their characteristics, may include suspicious domains and IPs or trusted IPs.  
+For learning more about those lists we will use:  
+ [CDB Lists Documentation](https://documentation.wazuh.com/current/user-manual/ruleset/cdb-list.html)
+
+---
+
+### 4. Groups
+Agents or endpoints grouping operation based on different things, using this may make pushing rules to one similar group rather than one by one.  
+To know more about this we will use:  
+ [Grouping Agents Documentation](https://documentation.wazuh.com/current/user-manual/agents/grouping-agents.html)
+
+---
+
+### 5. Configuration
+Helps to fine-tune Wazuh configurations like cluster configuration, alert management and log data analysis and more, by editing:
+Configuration is managed by editing the file in Wazuh manager or Wazuh agent:
+```bash
+/var/ossec/etc/ossec.conf
