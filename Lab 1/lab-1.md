@@ -201,81 +201,94 @@ Configuration is managed by editing the file in Wazuh manager or Wazuh agent:
 ```bash
 /var/ossec/etc/ossec.conf
 ```
-# Wazuh Server Installation and Configuration Guide
+# Wazuh Server Setup Guide
 
-As we have discussed that the Wazuh server is central component including:  
-1- Wazuh manager --> collects data from Wazuh agents then analyze them then trigger alerts  
-2- Filebeat --> forward alerts to Wazuh indexer  
+as we have disscused that the wazuh serever is central component including:
 
-We will get into production phase which we will use multi node cluster method:  
-1- production --> https://documentation.wazuh.com/current/installation-guide/index.html  
-2- VM OVA --> https://documentation.wazuh.com/current/deployment-options/virtual-machine/virtual-machine.html  
+1. wazuh manager --> collects data from wazuh agents then analyze them then trigger alerts
 
-Each documentation has full steps for installation guide we will depend on this guide of production  
-**https://documentation.wazuh.com/current/installation-guide/index.html**  
+2. Filebeat --> forward alerts to wazuh indexer
 
-## Steps to monitor by Wazuh:  
+we will get into production phase which we will use multi node cluster method:
 
-1- we will go to this link[](https://documentation.wazuh.com/current/quickstart.html)  
+1. production --> https://documentation.wazuh.com/current/installation-guide/index.html
 
-2- we will run this command into our VM (ubuntu) which is Wazuh installation assistant (installs anything Wazuh needs --> config files - Wazuh indexer - Wazuh server - Wazuh dashboard)  
-```bash
-curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && sudo bash ./wazuh-install.sh -a
-```
+2. VM OVA --> https://documentation.wazuh.com/current/deployment-options/virtual-machine/virtual-machine.html
 
-3- after finishing installation it will give me username and password to get into dashboard using them  
+each documentation has full steps for installation guide
 
-4- this username and password are stored in filebeat.yml file  
+we will depend on this guide of production **https://documentation.wazuh.com/current/installation-guide/index.html**
 
-5- we can find all password for all Wazuh indexers in wazuh-passwords.txt inside wazuh-install-files.tar to print them we use this command  
-```bash
-sudo tar -O -xvf wazuh-install-files.tar wazuh-install-files/wazuh-passwords.txt
-```
+## steps to monitor by wazuh:
 
-6- to go to dashboard we needs our machine ip address using this command  
-```bash
-ip addr
-```
+1. we will go to this link (https://documentation.wazuh.com/current/quickstart.html)
 
-7- then we will go to https://machine-ip-addr  
+2. we will run this command into our VM(ubuntu) which is Wazuh installation assistant(installs anything wazuh needs--> config files - wazuh indexer - wazuh server - wazuh dashboard)
 
-8- after getting into Wazuh dashboard we will see different sections  
-8.1- ENDPOINT SECURITY --> assessment of configurations, malware and file integrity  
-8.2- THREAT INTELLIGENCE --> responsible for threat hunting, vulnerability detection and mapping to mitre att&ck framework  
-8.3- SECURITY OPTIONS --> assess system, and regulatories compliance (PCI-DSS, GDPR, HIPAA, and others)  
-8.4- CLOUD SECURITY --> cloud services like docker aws and others security monitoring  
+   ```bash
+   curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && sudo bash ./wazuh-install.sh -a
+   ```
 
-9- now we will deploy new agent, my agent is kali Linux purple VM  
-9.1- we will choose the type of the agent os (Linux, windows, macos) to download suitable packages  
-9.2- enter Wazuh server ip address (ubuntu)  
-9.3- enter name of Wazuh agent (kali purple)  
-9.4- enter group (if there OSs with same structure we can put them into groups)  
-9.5- it will give us command we will copy it and paste it in Wazuh agent (purple) this will install packages and services needed into agent  
-9.6- if there is any firewall rules it should be deleted  
-9.7- if we want to install windows agent it will follow the same steps but choosing type of os windows  
+3. after finishing installation it will give me username and password to get into dashboard using them
 
-10- we will go to Agents and we will find kali purple agent, it takes an id and some meta data about machine  
+4. this username and password are stored in filebeat.yml file
+
+5. we can find all password for all wazuh indexers in wazuh-passwords.txt inside wazuh-install-files.tar to print them we use this command
+
+   ```bash
+   sudo tar -O -xvf wazuh-install-files.tar wazuh-install-files/wazuh-passwords.txt
+   ```
+
+6. to go to dashboard we needs our machine ip address using this command
+
+   ```bash
+   ip addr
+   ```
+
+7. then we will go to https://machine-ip-addr
+
+8. after geting into wazuh dashboard we wiil see different sections
+
+   - ENDPOINT SECURITY --> assessment of configurations, malware and file integrity
+
+   - THREAT INTELLIGENCE --> responsible for threat hunting,vulnerability detection and mapping to mitre att&ck framework
+
+   - SECURITY OPTIONS --> assess system, and regulatories compliance(PCI-DSS,GDPR,HIPAA, and others)
+
+   - CLOUD SECURITY --> cloud services like docker aws and others security monitoring
+
+9. now we will deploy new agent, my agent is kali Linux purple VM
+
+   - we will choose the type of the agent os (Linux,windws,macos) to download suitable packages
+
+   - enter wazuh server ip address(ubuntu)
+
+   - enter name of wazuh agent(kali purple)
+
+   - enter group (if there OSs with same structure we can put them into groups)
+
+   - it will give us command we will copy it and paste it in wazuh agent(purple) this will install packages and services needed into agent
+
+   - if there is any firewall rules it should be deleted
+
+   - if we want to install windows agent it will follow the same steps but choosing type of os windows
+
+10. we wiil go to Agents and we will find kali purple agent, it takes and id and some meta data about machine
 
 ## Suricata Installation
 
-Suricata is an NSM tool, which has the potential to work as an IPS/IDS. Its goal is to stop intrusion, malware, and other types of malicious attempts from taking advantage of a network. Now the steps of installing Suricata:  
+Suricata is an NSM tool, which has the potential to work as an IPS/IDS. Its goal is to stop intrusion, malware, and other types of malicious attempts from taking advantage of a network, now the steps of installing Suricata:
 
-1- use those three commands:  
-1.1-
-```bash
-sudo add-apt-repository ppa:oisf/suricata-stable
-```
-1.2-
-```bash
-sudo apt-get update
-```
-1.3-
-```bash
-sudo apt-get install suricata -y
-```
+1. use those three commands:
 
-2- install ET rules which is set of rules and we need to store all rules in /etc/suricata/rules directory  
-2.1-
-```bash
-cd /tmp/ && curl -LO https://rules.emergingthreats.net/open/suricata-6.0.8/emerging.rules.tar.gz && sudo tar -xvzf emerging.rules.tar.gz && sudo mv rules/*.rules /etc/suricata/rules/ && sudo chmod 640 /etc/suricata/rules/*.rules
-```
+   - `sudo add-apt-repository ppa:oisf/suricata-stable`
+
+   - `sudo apt-get update`
+
+   - `sudo apt-get install suricata –y`
+
+2. install et rules which is set of rules and we need to store all rules in /etc/suricata/rules directory
+
+   ```bash
+   cd /tmp/ && curl -LO https://rules.emergingthreats.net/open/suricata-6.0.8/emerging.rules.tar.gz && sudo tar -xvzf emerging.rules.tar.gz && sudo mv rules/*.rules /etc/suricata/rules/ && sudo chmod 640 /etc/suricata/rules/*.rules
+   ```
