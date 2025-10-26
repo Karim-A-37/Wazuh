@@ -116,7 +116,6 @@ Wazuh utilizes the **OSSEC HIDS** module, which is open source tool used in vari
 Wazuh has the ability to fully monitor security — it depends on what is our requirements.  
 For **production environment**, we should install Wazuh in **cluster mode** (setting up more than one Wazuh server node) to improve speed and scalability.
 
-In our lab we will use **OVA (Open Virtual Appliance)** to use it in **VirtualBox** to test our labs.  
 There are other deployment options like **dedicated server**, **VM image**, **Docker container**, and **Kubernetes**, each deployment option has its advantages.
 
  **[Wazuh Virtual Machine Deployment Documentation](https://documentation.wazuh.com/current/deployment-options/virtual-machine/virtual-machine.html)**
