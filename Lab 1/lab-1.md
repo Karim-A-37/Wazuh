@@ -1,4 +1,4 @@
-# Wazuh and Suricata Lab Notes
+# Wazuh Lab-1 Notes
 
 The cybersecurity landscape is constantly evolving, so there is need to use **SIEM (Security Information/Incident and Event Management)** to deal with the wide attack surfaces.  
 **Wazuh** is open source **SIEM** and **XDR (Extended Detection and Response)** that provides protection for endpoints and monitoring them all the time.  
@@ -292,3 +292,176 @@ Suricata is an NSM tool, which has the potential to work as an IPS/IDS. Its goal
    ```bash
    cd /tmp/ && curl -LO https://rules.emergingthreats.net/open/suricata-6.0.8/emerging.rules.tar.gz && sudo tar -xvzf emerging.rules.tar.gz && sudo mv rules/*.rules /etc/suricata/rules/ && sudo chmod 640 /etc/suricata/rules/*.rules
    ```
+3. modify suricata configurations to change default settings in file /etc/suricata/suricata.yaml
+   - `3.1- we will find some codes are already written, lets break the needed ones until now`
+      - `3.1.1- HOME_NET  --> needs the agent IP address`
+      - `3.1.2- EXTERNAL_NET --> we will set it as any to monitor all external IP addresses we can specify the external IPs we need to monitor`
+      - `3.1.3- default-rule-path --> the set of rules we have installed and is /etc/suricata/rules`
+      - `3.1.4- af-packet  --> packet capture method on NIC, NIC by command ip addr`
+4. before restarting suricata it will ask for reloading since we change the configuration file by using
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart suricata
+```
+
+
+5. to integrate suricata with wazuh we should specify suricata log file location under wazuh agent ossec config file at `/var/ossec/etc/ossec.conf` and Suricata stores all the logs at `/var/log/suricata/eve.json`, we will put suricata log file location into location tag in ossec.conf by putting this code :
+
+
+```xml
+<ossec_config>
+	<localfile>
+	  <log_format>json</log_format>
+	  <location>/var/log/suricata/eve.json</location>
+	</localfile>
+</ossec_config>
+```
+
+
+6. Restart the Wazuh agent service using
+
+
+```bash
+sudo systemctl restart wazuh-agent
+```
+
+we have finally integrated wazuh with suricata, we have installed suricata on Ubuntu server with et rules and then our endpoint is ready to trigger alerts for any malicious traffic matched with any et rule.
+
+there are two ways to install suricata on :
+   - `1. install suricata on wazuh server --> it works as centeral point , but it has condition that it should sees the traffic between kali and purple`
+   - `2. install suricata on wazuh agent --> it works on the endpoint itself to monitor this endpoint only(we will use on our case)`
+      - `2.1- sudo apt update && sudo apt install -y suricata suricata-update --> Install Suricata + dependencies`
+      - `2.2- sudo suricata-update update-sources , sudo suricata-update --> Update and enable Emerging Threats (ET) rules`
+      - `2.3- sudo nano /etc/suricata/suricata.yaml --> edit configuration file`
+            - `outputs:`
+              - `- eve-log:`
+                  - `enabled: yes`
+                  - `filetype: regular`
+                  - `filename: /var/log/suricata/eve.json`
+                  - `community-id: yes`
+            - `types:`
+              - `- alert:`
+                  - `payload: yes`
+                  - `metadata: yes`
+
+
+	 - `2.4- sudo systemctl restart suricata --> restart suricata`
+	 - `2.5- sudo nano /etc/default/suricata  --> to edit default interface by putting in it (IFACE=eth0) which will listen on this interface`
+	 - `2.6- sudo nano /var/ossec/etc/ossec.conf  -->  to edit wazuh agent config file`
+
+
+```xml
+<ossec_config>
+  <localfile>
+    <log_format>json</log_format>
+    <location>/var/log/suricata/eve.json</location>
+  </localfile>
+</ossec_config>
+```
+
+```
+	2.7- sudo systemctl restart wazuh-agent  --> restart wazuh agent
+	2.8- test usin nmap -->
+```
+
+```bash
+nmap -sS -Pn <wazuh agent ip-addess>
+```
+
+```
+	2.9- seeing result in wazuh dashboard
+```
+
+suricata is powerful when rule is powerful, there are many rule templates but we will learn how to create custom suricata rules.
+
+suricata uses rules to detect different network events and when certain conditions are met it may alert or block this event it depends on how we write it, we will break down the rule syntax:
+```rules 
+action proto src_ip src_port -> dest_ip dest_port (msg:"Alert message"; content:"string"; sid:12345;)
+```
+   - `1- action --> action will be taken when the rule is true may be alert or drop or any other action`
+   - `2- proto  --> shows what kind of traffic is being matched(tcp,udp,icmp and others), type of traffic`
+   - `3- src_ip --> specify range of IPs where traffic comes from`
+   - `4- src_port --> specify range of ports where traffic comes form`
+   - `5- dest_ip --> specify range of IPs where traffic is going`
+   - `6- dest_port --> specify range of ports where traffic is going`
+   - `7- msg --> message that will be shown as alert when rule is true`
+   - `8- content --> optional field that checks the packet payload for certain content`
+   - `9- flow --> this defines the direction of the traffic that initiates the rule, prevents initial connection attempts from generating alerts.`
+   - `10- sid --> rule id should be unique`
+
+```rules
+alert tcp $EXTERNAL_NET any -> $HOME_NET 22 (msg:"SSH connction detected";flow:to_server,established;content:"SSH-2.0-OpenSSH"; sid:100001;)
+```
+  -   `1- alert: The rule specifies that an alert should be generated if the specified conditions are met.`
+  -   `2- tcp: This refers to Transmission Communication Protocol (TCP) based traffic.`
+  -   `3- $EXTERNAL_NET any -> $HOME_NET 22: The traffic flow is defined by directing traffic from any external network IP address ($EXTERNAL_NET) to any home or local network IP ($HOME_NET) on port 22 (SSH).`
+  -   `4- (msg:"SSH connection detected";): This specifies a detailed message to be added to the alert. It indicates that the rule has identified an SSH connection in this instance.`
+  -   `5- flow:to_server,established: This defines the direction of the traffic that initiates the rule. It is looking for established connections between the server (home network) and the server (external                network). This portion of the rule prevents initial connection attempts from generating alerts.`
+  -   `6- content:"SSH-2.0-OpenSSH": This part looks at the payload of the packet for a particular string ("SSH-2.0-OpenSSH"). It searches the traffic payload for this specific string, which signifies the                  utilization of the OpenSSH protocol and the SSH protocol in general.`
+  -   `7- sid:100001: It is a unique identifier for a particular rule.`
+
+
+now we will start to test this by using network scanning probe attack, Network scanning is initial stage of most hacking exercises, and most powerful tool for this is Nmap scanner, Nmap is a free open source tool, helps us to scan any host to discover any opened ports, sw versions , OSs and so on.it is used for security testing and vulnerability detection, and threat agents use it also to discover opened ports or vulnerability packages. we will now initiate network scanning using Nmap against our wazuh agent(purple --> running suricata services). ET rule set already contains rules to detect Nmap scanning.
+   - `1- to test the Nmap scenario we neet three parts`
+      - `1.1- attacker --> kali Linux`
+      - `1.2- wazuh agent --> purple (our defendable endpoint)`
+      - `1.3- wazuh server --> ubuntu`
+   we can install Nmap using this command
+
+   ```bash
+      sudo apt-get install nmap
+   ```
+
+   ,the flow is ( attacker  --port scanning--> endpoint(wazuh agent) <-- wazuh server)
+   - `2- now we will simulate the attack , here is the steps:`
+      - `2.1- opens kali`
+      - `2.2- opens terminal`
+      - `2.3- enter nmap command using (-sS) keyword for SYN scan and (-Pn) to skip host discovery, here how it works`
+         - `2.3.1- The Nmap SYN scan is a half open scan that works by sending a TCP SYN packet to the target machine (the Wazuh agent)`
+         - `2.3.2- If the port is open, the target device responds with a SYN-ACK (synchronize-acknowledgment) packet`
+         - `2.3.3-  However, if the port is closed, the device may respond with an RST (reset) packet`
+         - `2.3.4- (-sS) --> to check for open ports -->`
+
+            ```bash
+               nmap -sS -Pn 192.168.133.128
+            ```
+
+```
+			Starting Nmap 7.95 ( https://nmap.org ) at 2025-10-31 09:37 EET
+			Nmap scan report for 192.168.133.128 (192.168.133.128)
+			Host is up (0.00026s latency).
+			Not shown: 999 closed tcp ports (reset)
+			PORT   STATE SERVICE
+			22/tcp open  ssh
+			MAC Address: 00:0C:29:4F:22:28 (VMware)
+
+		2.3.5- (-sV) --> to check for software version -->
+```
+
+         ```bash
+            nmap -sV -Pn 192.168.133.128
+         ```
+
+```
+			Starting Nmap 7.95 ( https://nmap.org ) at 2025-10-31 09:39 EET
+			Nmap scan report for 192.168.133.128 (192.168.133.128)
+			Host is up (0.00022s latency).
+			Not shown: 999 closed tcp ports (reset)
+			PORT   STATE SERVICE VERSION
+			22/tcp open  ssh     OpenSSH 10.0p2 Debian 8 (protocol 2.0)
+			MAC Address: 00:0C:29:4F:22:28 (VMware)
+			Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+			Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+```
+  after run the two commands we will learn what all the ports are open and second, what version of the package is installed on the target machine
+   - `3- in wazuh dashboard we will see alerts like (Suricata: Alert - ET SCAN Suspicious inbound to PostgreSQL port 5432) we can expand this alert to see more information like :`
+	    - `3.1- data.alert.signature --> this filed talks about the ruricata rule applied and detected this abnormal traffic(ET for rule set)`
+	    - `3.2- data.dest_ip  --> this field gives us victim machine`
+	    - `3.3- data.src_ip --> this field gives us attacker machine`
+	    - `3.4- data.alert.action --> this field indicates the actions taken by wazuh in response to the detected event`
+	    - `3.5- alerts.severity  --> this field shows severity level to the event by wazuh`
+  there are more and more fields
+
+this is how the wazuh can detect network scanning probes via suricata and wazuh visualizes it on the dashboard.
+
