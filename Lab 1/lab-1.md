@@ -465,3 +465,212 @@ now we will start to test this by using network scanning probe attack, Network s
 
 this is how the wazuh can detect network scanning probes via suricata and wazuh visualizes it on the dashboard.
 
+# Testing Web-Based Attacks Using DVWA
+
+As web-based attacks causing data breaches are increasing, some common attacks include:
+
+1.  XSS (Cross-Site Scripting)
+2.  DDoS (Distributed Denial of Service)
+3.  CSRF (Cross-Site Request Forgery)
+4.  XXE (XML External Entity)
+5.  SQL Injection
+
+Suricata ET rule sets can detect such attacks by analyzing the packet payload and examining HTTP/HTTPS headers for abnormal traffic patterns. We will now utilize an intentionally vulnerable web application, DVWA. DVWA is a PHP-based application popular among penetration testers, helping them practice on security vulnerabilities and exploitation.
+
+## Test Case Machine Setup
+
+In this test case, we will configure our machines as follows:
+
+1.  **Attacker**: Kali
+2.  **Victim**: DVWA (Debian)
+3.  **Wazuh + Suricata Agent**: TAP server (Purple)
+4.  **Wazuh Server**: Ubuntu
+
+## DVWA Installation and Configuration
+
+Now, we will install the DVWA application and its dependencies on Debian-based Linux by following these steps:
+
+### 1. Install Dependencies
+
+1.  ```bash
+    sudo apt install apache2 mariadb-server php php-mysqli php-gd php-xml php-mbstring php-zip php-curl git -y
+    ```
+2.  ```bash
+    sudo systemctl restart apache2
+    ```
+
+### 2. Prepare Database
+
+1.  Setup database:
+    ```bash
+    sudo mysql
+    ```
+2.  Create DVWA database with username `dvwa` and password `password`:
+    ```sql
+    CREATE DATABASE dvwa;
+    CREATE USER 'dvwa'@'localhost' IDENTIFIED BY 'password';
+    GRANT ALL PRIVILEGES ON dvwa.* TO 'dvwa'@'localhost';
+    FLUSH PRIVILEGES;
+    EXIT;
+    ```
+
+### 3. Installation of DVWA and Configuration
+
+1.  Navigate to the web directory:
+    ```bash
+    cd /var/www/html
+    ```
+2.  Install DVWA:
+    ```bash
+    sudo git clone https://github.com/digininja/DVWA.git
+    ```
+3.  Ensure Apache has full access to DVWA:
+    ```bash
+    sudo chown -R www-data:www-data /var/www/html/DVWA
+    ```
+4.  ```bash
+    sudo chmod -R 755 /var/www/html/DVWA
+    ```
+5.  ```bash
+    cd /var/www/html/DVWA/config
+    ```
+6.  ```bash
+    sudo cp config.inc.php.dist config.inc.php
+    ```
+7.  Edit `config.inc.php` (check for username `admin` and password `password` as in the MySQL database):
+    ```bash
+    sudo nano config.inc.php
+    ```
+8.  Edit `php.ini` to enable `allow_url_include` and `display_errors`:
+    ```bash
+    sudo nano /etc/php/*/apache2/php.ini
+    ```
+    (Set `allow_url_include = On` and `display_errors = On`)
+9.  ```bash
+    sudo systemctl restart apache2
+    ```
+
+### 4. Run DVWA
+
+1.  Open DVWA in browser:
+    ```
+    http://localhost/DVWA/setup.php
+    ```
+2.  Click on login.
+3.  Enter username `admin` and password `password`.
+
+## SQL Injection Attack Test
+
+Now that DVWA installation is complete and functional, we will proceed to test attacks. We will start with an SQL injection attack. SQL injection involves inserting malicious SQL code to retrieve unauthorized information. We will configure Debian as a Wazuh agent and install Suricata on it, similar to the 'purple' machine. The SQL injection URL is:
+
+```
+http://<DVWA_IP_ADDRESS>/DVWA/vulnerabilities/sqli/?id=a' UNION SELECT "Hello","Hello Again";-- -&Submit=Submit
+```
+
+Let's break down the components of this SQL injection:
+
+1.  **The `UNION SELECT`**: This statement is used to combine the results of two or more `SELECT` queries into a single result set. In our case, "Hello" and "Hello Again" are the two results that we want to inject.
+2.  **`-- -`**: This is a comment in SQL; anything following it is ignored by the SQL server.
+3.  **`&Submit=Submit`**: This suggests that the query is part of a form submission, and the `Submit` parameter has the value `Submit`.
+
+The Suricata ET rule set detects this attack and generates the following two alerts:
+
+1.  `Nov 24, 2025 @ 15:57:31.604 purple SQL injection attempt.`
+2.  `Nov 24, 2025 @ 15:57:31.613 purple Suricata: Alert - ET WEB_SERVER Possible SQL Injection Attempt UNION SELECT in HTTP URI`
+    When expanding this alert, we can see:
+    1.  `data.alert.category`: `Web Application Attack` - Category of the ET rule that detected this SQL injection attack.
+    2.  `data.alert.metadata.tag`: `SQL_Injection` - Metadata tag for this attack, indicating it meets the specified attack in the Web Application Attack category.
+    3.  `data.http.http_user_agent`: `Mozilla/5.0 (X11; Linux x86_64; rv:143.0) Gecko/20100101 Firefox/143.0` - Represents the browser from which the attack was deployed.
+    4.  `data.http.url`: `/DVWA/vulnerabilities/sqli/?id=a%27%20UNION%20SELECT%20%22Hello%22,%22Hello,Again%22;--%20-&Submit=Submit` - Represents the URL used in the attack.
+
+## XSS (Cross-Site Scripting) Attack Test
+
+Next, we will test another attack: XSS (Cross-Site Scripting). XSS is a type of code injection attack that targets websites by sending malicious scripts to a user's web browser for execution. The user's browser executes the attack, and the script is reflected to the user's browser from the web server. Reflected XSS exploits poor filtration of information, which reflects data directly to the user without sufficient sanitization. We will test this vulnerability by injecting JavaScript code and observing if the application reflects it directly to the user. Steps:
+
+1.  Go to DVWA to the Reflected XSS vulnerability tab.
+2.  In the field of info, we will put this JavaScript code snippet:
+    ```javascript
+    <script>alert("Hello");</script>
+    ```
+    1.  `<script>` tag: This indicates a piece of JavaScript code that should be executed by the browser.
+    2.  `Alert("Hello")`: This is a function that tells the browser to display a pop-up box with the "Hello" text when the script is executed.
+3.  As we see, the code is reflected into our browser with a pop-up box containing "Hello".
+4.  We will see that the Suricata ET rule set has captured the XSS attack.
+5.  This is the alert: `Nov 24, 2025 @ 17:02:54.336 purple Suricata: Alert - ET WEB_SERVER Script tag in URI Possible Cross Site Scripting Attempt`
+    1.  `data.alert.category`: `Web Application Attack` - Category of the ET rule that detected this XSS attack.
+    2.  `data.alert.metadata.tag`: `Cross_Site_Scripting, XSS` - Metadata tag for this attack, indicating it meets the specified attack in the Web Application Attack category.
+    3.  
+
+## Conclusion of DVWA Tests
+
+In this section, we successfully launched SQL Injection and Reflected XSS attacks on the intentionally vulnerable DVWA application. We then detected these attacks using Suricata ET rules and visualized them on the Wazuh dashboard.
+
+# NIDS Testing with tmNIDS
+
+Now, we will perform testing using a Network Intrusion Detection System (NIDS) with tmNIDS. tmNIDS is a GitHub project maintained by 3CoreSec. It is a simple framework for testing the detection capabilities of NIDS like Suricata and Snort (in our case, Suricata). The tests within tmNIDS are designed to align with rulesets compatible with the ET community. For this test, we will have:
+
+1.  **VM**: Wazuh agent + Suricata + tmNIDS (Kali Purple)
+2.  **VM**: Wazuh server (manager) (Ubuntu)
+
+We can install tmNIDS using this command:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/3CORESec/testmynids.org/master/tmNIDS -o /tmp/tmNIDS && chmod +x /tmp/tmNIDS && /tmp/tmNIDS
+```
+
+Let's break down the command:
+
+1.  `curl`: A utility tool that initiates a request to download data from the specified URL.
+2.  `-s`: Stands for silent, showing progress without any output.
+3.  `-S`: Shows errors if `curl` encounters any problem during the request.
+4.  `-L`: Represents redirection.
+5.  `-o`: Specifies where to save the downloaded package (`/tmp/tmNIDS`).
+6.  `chmod +x /tmp/tmNIDS`: Changes the file permissions to be executable so it can be run as a program.
+
+Now that tmNIDS is ready, the following table represents all available tests:
+
+| Test ID | Name                                            | Protocols Used         |
+| :------ | :---------------------------------------------- | :--------------------- |
+| 1       | Linux UID                                       | HTTP                   |
+| 2       | Basic Authentication over clear text            | HTTP                   |
+| 3       | Several known malware-related user agents       | HTTP                   |
+| 4       | Known bad CA's & Certificates                   | TLS, DNS & TCP         |
+| 5       | Tor .onion response and random Tor nodes connection | DNS & TLS              |
+| 6       | EXE download over HTTP (from AWS S3) & Packed Executable | HTTP                   |
+| 7       | PDF download over HTTP with Embedded File       | HTTP                   |
+| 8       | Simulate an outbound SSH scan                   | SSH                    |
+| 9       | Miscellaneous (TLD's, Sinkhole, DDNS, etc) domains | DNS                    |
+| 10      | Anonymous file sharing website                  | DNS & TLS              |
+| 11      | External IP Address Lookup website              | HTTP, DNS & TLS        |
+| 12      | URL Shortener                                   | DNS                    |
+| 13      | Policy Violation - Gaming                       | HTTP                   |
+| 14      | Adware PUP                                      | HTTP                   |
+| 15      | Malware Command & Control Beacon                | HTTP                   |
+| 99      | CHAOS! Run all tests!                           | ALL                    |
+
+## Testing for Malicious User-Agent (Test ID 3)
+
+The first test is for a malicious User-Agent (Test ID 3). For every HTTP request, a User-Agent header describes the user's browser, device, OS, rendering engine details, and other information. When a browser sends a request to a web server, it inserts this User-Agent header to identify itself to the server (similar to a handshake). We will now enter `3` to test for a malicious HTTP User-Agent. This is detected using the Suricata ET rule set and produces the following 5 alerts:
+
+1.  `Nov 24, 2025 @ 17:52:49.085 purple Suricata: Alert - ET USER_AGENTS Suspicious User Agent (BlackSun)`
+2.  `Nov 24, 2025 @ 17:52:49.100 purple Suricata: Alert - ET USER_AGENTS Suspicious User-Agent (HttpDownload)`
+3.  `Nov 24, 2025 @ 17:52:51.076 purple Suricata: Alert - ET USER_AGENTS Suspicious User Agent (agent)`
+4.  `Nov 24, 2025 @ 17:52:51.091 purple Suricata: Alert - ET USER_AGENTS Suspicious User-Agent (MSIE)`
+5.  `Nov 24, 2025 @ 17:52:51.105 purple Suricata: Alert - ET INFO Delphi JEDI Visual Component Library User-Agent (JEDI-VCL)`
+
+All alerts fall under the same ET category: `data.alert.category: A Network Trojan was detected`, with different signatures.
+
+## Testing for Tor Connection (Test ID 5)
+
+The second test is for a Tor connection (Test ID 5). Tor is a decentralized, anonymous network that users can utilize to browse the internet privately and safely. However, it is often used by hackers, malicious actors, and cybercriminals who access the dark web and sell stolen data and illegal goods online. Its anonymity features can keep attackers’ identities secret, making it difficult for governments to track their actions. Therefore, it is important for every organization to block any traffic from Tor services. The most popular Tor application is Tor Browser. When anyone accesses a website through the Tor Browser, the traffic goes through proxy nodes, making it difficult to intercept. From a cybersecurity perspective, we can build a list of IP addresses of such nodes and eventually block them, or block Tor-based applications based on their signatures. We will now enter `5` to test for a Tor connection. This is detected using the Suricata ET rule set and produces the following 2 alerts:
+
+1.  `Nov 24, 2025 @ 18:15:23.992 purple Suricata: Alert - ET POLICY DNS Query for TOR Hidden Domain .onion Accessible Via TOR`
+    1.  `data.alert.category`: `Potential Corporate Privacy Violation` - Category of the alert.
+    2.  `data.alert.metadata.tag`: `Description_Generated_By_Proofpoint_Nexus` - Metadata tag for the alert.
+2.  `Nov 24, 2025 @ 18:15:23.993 purple Suricata: Alert - ET MALWARE Cryptowall .onion Proxy Domain`
+    1.  `data.alert.category`: `A Network Trojan was detected` - Category of the alert.
+    2.  `data.alert.metadata.tag`: `Description_Generated_By_Proofpoint_Nexus` - Metadata tag for the alert.
+
+## Running All tmNIDS Tests
+
+We can run all tests at once by entering `99`, which executes all available tests.
