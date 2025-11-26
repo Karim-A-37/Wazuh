@@ -673,4 +673,4 @@ The second test is for a Tor connection (Test ID 5). Tor is a decentralized, ano
 
 ## Running All tmNIDS Tests
 
-We can run all tests at once by entering `99`, which executes all available tests.
+We can run all tests at once by entering `16`, which executes all available tests.
